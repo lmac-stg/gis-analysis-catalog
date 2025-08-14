@@ -68,6 +68,16 @@
         .category-FACILITIES { background-color: #f39c12; }
         .category-HISTORIC { background-color: #9b59b6; }
         
+        /* New unique colors for GIS Analysis tags */
+        .category-CONTEXT { background-color: #3498db; }
+        .category-INTERACTIVE { background-color: #e91e63; }
+        .category-CIRCULATION { background-color: #ff9800; }
+        .category-SITEFEATURES { background-color: #4caf50; }
+        .category-DEMOGRAPHICS { background-color: #9c27b0; }
+        .category-STATISTICS { background-color: #607d8b; }
+        .category-PRESENTATION { background-color: #ff5722; }
+        .category-GENERAL { background-color: #6c757d; }
+        
         /* Image popup modal styles */
         .image-modal {
             display: none;
@@ -493,7 +503,9 @@ Papa.parse("GIS Analysis Catalog.csv", {
                     tags.forEach(function(tag) {
                         var cleanTag = tag.trim();
                         if(cleanTag) {
-                            tagBadges += "<span class='category-badge category-" + cleanTag.replace(/\s+/g, '') + "' onclick='filterByCategory(\"" + cleanTag + "\")'>" + cleanTag + "</span> ";
+                            // Remove spaces and special characters for CSS class name
+                            var cssClassName = cleanTag.replace(/\s+/g, '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+                            tagBadges += "<span class='category-badge category-" + cssClassName + "' onclick='filterByCategory(\"" + cleanTag + "\")'>" + cleanTag + "</span> ";
                         }
                     });
                 } else {
