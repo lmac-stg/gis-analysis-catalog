@@ -101,6 +101,54 @@
             color: #ccc;
         }
         
+        /* Image gallery navigation */
+        .modal-nav {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            color: white;
+            font-size: 30px;
+            font-weight: bold;
+            cursor: pointer;
+            background-color: rgba(0,0,0,0.5);
+            padding: 10px 15px;
+            border-radius: 5px;
+            user-select: none;
+        }
+        .modal-nav:hover {
+            background-color: rgba(0,0,0,0.8);
+        }
+        .modal-prev {
+            left: 20px;
+        }
+        .modal-next {
+            right: 20px;
+        }
+        .modal-counter {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: white;
+            background-color: rgba(0,0,0,0.7);
+            padding: 5px 15px;
+            border-radius: 15px;
+            font-size: 14px;
+        }
+        
+        /* Multiple image indicator */
+        .image-count-badge {
+            position: absolute;
+            top: 2px;
+            right: 2px;
+            background-color: #007bff;
+            color: white;
+            border-radius: 10px;
+            padding: 2px 6px;
+            font-size: 10px;
+            font-weight: bold;
+        }
+        
         /* Request data modal styles */
         .request-modal {
             display: none;
@@ -363,7 +411,10 @@
 <!-- Image popup modal -->
 <div id="imageModal" class="image-modal">
     <span class="close-modal">&times;</span>
+    <div class="modal-nav modal-prev" id="modalPrev">&lt;</div>
+    <div class="modal-nav modal-next" id="modalNext">&gt;</div>
     <img class="modal-content" id="modalImage">
+    <div class="modal-counter" id="modalCounter">1 / 1</div>
 </div>
 
 <!-- Request data modal -->
@@ -417,11 +468,20 @@ Papa.parse("GIS Analysis Catalog.csv", {
             // row is now an object with headers: TOOL, TAGS, OUTPUT FORMAT, DESCRIPTION, EXAMPLE USE, IMAGE
             if(row.TOOL && row.TOOL.trim() !== "") { // Check if tool exists
                 var thumbnailContent = "";
-                // Use IMAGE column if available
-                var imageUrl = (row.IMAGE && row.IMAGE.trim() !== "") ? "images/" + row.IMAGE : "";
+                // Use IMAGE column - support multiple URLs separated by semicolons or commas
+                var imageUrls = [];
+                if(row.IMAGE && row.IMAGE.trim() !== "") {
+                    // First try semicolon separator, then comma separator
+                    var separator = row.IMAGE.includes(';') ? ';' : ',';
+                    imageUrls = row.IMAGE.split(separator).map(url => url.trim()).filter(url => url);
+                }
                 
-                if(imageUrl) {
-                    thumbnailContent = "<img src='" + imageUrl + "' alt='" + row.TOOL + " thumbnail' onclick='openImageModal(\"" + imageUrl + "\")' onerror='this.style.display=\"none\"; this.parentNode.innerHTML=\"<div class=\\\"image-placeholder\\\">No Image Available</div>\";'>";
+                if(imageUrls.length > 0) {
+                    var firstImageUrl = imageUrls[0];
+                    var imageCountBadge = imageUrls.length > 1 ? "<span class='image-count-badge'>" + imageUrls.length + "</span>" : "";
+                    thumbnailContent = "<div style='position: relative; display: inline-block;'>" +
+                        "<img src='" + firstImageUrl + "' alt='" + row.TOOL + " thumbnail' onclick='openImageModal(\"" + row.IMAGE + "\")' onerror='this.style.display=\"none\"; this.parentNode.innerHTML=\"<div class=\\\"image-placeholder\\\">No Image Available</div>\";'>" +
+                        imageCountBadge + "</div>";
                 } else {
                     thumbnailContent = "<div class='image-placeholder'>No Image Available</div>";
                 }
@@ -578,11 +638,72 @@ function clearDatabaseFilter() {
 }
 
 // Image modal functions
-function openImageModal(imageSrc) {
+var currentImageIndex = 0;
+var currentImageArray = [];
+
+function openImageModal(imageData) {
     var modal = document.getElementById("imageModal");
     var modalImg = document.getElementById("modalImage");
+    var modalPrev = document.getElementById("modalPrev");
+    var modalNext = document.getElementById("modalNext");
+    var modalCounter = document.getElementById("modalCounter");
+    
+    // Parse image data (could be single URL or multiple URLs separated by semicolons or commas)
+    var separator = imageData.includes(';') ? ';' : ',';
+    currentImageArray = imageData.split(separator).map(url => url.trim()).filter(url => url);
+    currentImageIndex = 0;
+    
+    // Show modal
     modal.style.display = "block";
-    modalImg.src = imageSrc;
+    
+    // Update image and navigation
+    updateModalImage();
+    
+    // Show/hide navigation based on number of images
+    if (currentImageArray.length > 1) {
+        modalPrev.style.display = "block";
+        modalNext.style.display = "block";
+        modalCounter.style.display = "block";
+    } else {
+        modalPrev.style.display = "none";
+        modalNext.style.display = "none";
+        modalCounter.style.display = "none";
+    }
+}
+
+function updateModalImage() {
+    var modalImg = document.getElementById("modalImage");
+    var modalCounter = document.getElementById("modalCounter");
+    
+    if (currentImageArray.length > 0) {
+        modalImg.src = currentImageArray[currentImageIndex];
+        modalCounter.textContent = (currentImageIndex + 1) + " / " + currentImageArray.length;
+    }
+}
+
+function nextImage() {
+    if (currentImageArray.length > 1) {
+        currentImageIndex = (currentImageIndex + 1) % currentImageArray.length;
+        updateModalImage();
+    }
+}
+
+function prevImage() {
+    if (currentImageArray.length > 1) {
+        currentImageIndex = (currentImageIndex - 1 + currentImageArray.length) % currentImageArray.length;
+        updateModalImage();
+    }
+}
+
+// Add click events for navigation
+document.getElementById("modalNext").onclick = function(event) {
+    event.stopPropagation();
+    nextImage();
+}
+
+document.getElementById("modalPrev").onclick = function(event) {
+    event.stopPropagation();
+    prevImage();
 }
 
 // Close modal when clicking the X or outside the image
@@ -596,11 +717,20 @@ document.getElementById("imageModal").onclick = function(event) {
     }
 }
 
-// Close modal with Escape key
+// Close modal with Escape key and navigate with arrow keys
 document.addEventListener('keydown', function(event) {
     if (event.key === 'Escape') {
         document.getElementById("imageModal").style.display = "none";
         document.getElementById("requestModal").style.display = "none";
+    }
+    
+    // Arrow key navigation for image modal
+    if (document.getElementById("imageModal").style.display === "block") {
+        if (event.key === 'ArrowRight') {
+            nextImage();
+        } else if (event.key === 'ArrowLeft') {
+            prevImage();
+        }
     }
 });
 
